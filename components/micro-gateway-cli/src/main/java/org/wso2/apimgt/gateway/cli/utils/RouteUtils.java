@@ -51,9 +51,16 @@ public class RouteUtils {
     private static final String BASE_PATHS = "basePaths";
     private static final String GLOBAL_ENDPOINTS = "globalEndpoints";
     private static final String RESOURCES = "resources";
+    private static final String GLOBAL_FUNCTION = "resources";
     private static JsonNode routesConfig;
     //todo: change accordingly
     private static String routesConfigPath;
+
+    public static final String IN = "in";
+    public static final String OUT = "out";
+    public static final String FUNCTION_IN ="functionIn";
+    public static final String FUNCTION_OUT ="functionOut";
+
 
     public static void saveGlobalEpAndBasepath(String apiDefPath, String routesConfigPath, String basePath,
                                         String endpointConfigJson){
@@ -155,11 +162,13 @@ public class RouteUtils {
         JsonNode basePathsNode = null;
         JsonNode globalEpsNode = null;
         JsonNode resourcesNode = null;
+        JsonNode globalFunctionNode = null;
 
         if(!routesConfig.isNull()){
             basePathsNode = routesConfig.get(BASE_PATHS);
             globalEpsNode = routesConfig.get(GLOBAL_ENDPOINTS);
             resourcesNode = routesConfig.get(RESOURCES);
+            globalFunctionNode = routesConfig.get(GLOBAL_FUNCTION);
         }
 
         if(basePathsNode == null){
@@ -177,6 +186,10 @@ public class RouteUtils {
             ((ObjectNode) routesConfig).set(RESOURCES, resourcesNode);
         }
 
+        if(globalFunctionNode == null){
+            globalFunctionNode = OBJECT_MAPPER_YAML.createObjectNode();
+            ((ObjectNode) routesConfig).set(GLOBAL_FUNCTION, globalFunctionNode);
+        }
         return routesConfig;
     }
 
@@ -190,6 +203,11 @@ public class RouteUtils {
         }
 
         return new String[] {arrayNode.get(0).asText()};
+    }
+
+    public static APIRouteEndpointConfig getGlobalEpConfig(String apiName, String apiVersion, String routesConfigPath){
+        String apiId = HashUtils.generateAPIId(apiName, apiVersion);
+        return getGlobalEpConfig(apiId, routesConfigPath);
     }
 
     public static APIRouteEndpointConfig getGlobalEpConfig(String apiId, String routesConfigPath){
@@ -398,5 +416,37 @@ public class RouteUtils {
 
     public static void setRoutesConfigPath(String routesConfigPath) {
         RouteUtils.routesConfigPath = routesConfigPath;
+    }
+
+    public static void addFunction(String function, String type, String apiID, String routeConfigPath,
+                                   String projectName) {
+
+        APIRouteEndpointConfig api = RouteUtils.getGlobalEpConfig(apiID,
+                GatewayCmdUtils.getProjectRoutesConfFilePath(projectName));
+
+        if (type.equals(IN)) {
+            api.setFunctionIn(function);
+        } else if (type.equals(OUT)) {
+            api.setFunctionOut(function);
+        }
+        JsonNode jn = getRoutesConfig(routeConfigPath);
+        addAPIRouteEndpointConfigAsGlobalEp(jn, apiID, api);
+        writeRoutesConfig(jn, routeConfigPath);
+    }
+
+    public static void AddGlobalFunction(String routeConfigPath, String function, String type) {
+
+        JsonNode rootNode = getRoutesConfig(routeConfigPath);
+        JsonNode jsonNode = rootNode.get(GLOBAL_FUNCTION);
+
+        if (type.equals(IN)) {
+            ((ObjectNode) jsonNode).put(FUNCTION_IN, function);
+        }
+        if (type.equals(OUT)) {
+            ((ObjectNode) jsonNode).put(FUNCTION_OUT, function);
+        }
+
+        writeRoutesConfig(rootNode, routeConfigPath);
+
     }
 }
